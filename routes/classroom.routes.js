@@ -1,35 +1,57 @@
-import express from 'express'
+import express, { json } from 'express'
 import { google } from 'googleapis'
-import { getOAuthClient } from '../services/googleAuth.js'
+import { getClassroomClient } from '../services/googleAuth.js'
 
 const router = express.Router()
 
-// Obtener cursos
+/**
+ * obtener cursos totales de la cuenta
+ */
 router.get('/courses', async (req, res) => {
-  try {
-    const auth = getOAuthClient()
-    const classroom = google.classroom({ version: 'v1', auth })
+    try {
+    const classroom = getClassroomClient()
 
-    const response = await classroom.courses.list()
-    res.json(response.data.courses || [])
+    const response = await classroom.courses.list({
+      teacherId: 'me'
+    })
+
+    const courses = response.data.courses || []
+
+    const formatted = courses.map(course => ({
+      id: course.id,
+      name: course.name,
+      section: course.section || null,
+      room: course.room || null
+    }))
+
+    res.json(formatted)
   } catch (err) {
+    console.error(err)
     res.status(500).json({ error: err.message })
   }
 })
 
-// Crear tarea
+/**
+ * Crea una tarea en un curso especificado como param (courseId)
+ */
 router.post('/courses/:courseId/coursework', async (req, res) => {
-  try {
+   try {
     const { courseId } = req.params
-    const auth = getOAuthClient()
-    const classroom = google.classroom({ version: 'v1', auth })
+    const classroom = getClassroomClient()
 
-    const work = await classroom.courses.courseWork.create({
+    if (!req.body.title || req.body.title.trim() === '') {
+      req.body.title = 'Tarea'
+    }
+
+    const response = await classroom.courses.courseWork.create({
       courseId,
-      requestBody: req.body
+      requestBody: {
+        ...req.body,
+        state: req.body.state || 'PUBLISHED'
+      }
     })
 
-    res.json(work.data)
+    res.status(201).json(response.data)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
