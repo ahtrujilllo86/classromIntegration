@@ -20,8 +20,7 @@ router.get('/courses', async (req, res) => {
     const formatted = courses.map(course => ({
       id: course.id,
       name: course.name,
-      section: course.section || null,
-      room: course.room || null
+      raw: course
     }))
 
     res.json(formatted)
